@@ -1,0 +1,6 @@
+Interface gráfica
+Contador de estatísticas
+Buckets
+Tabela
+Pesquisa
+Função Hash
