@@ -1,2 +1,9 @@
+from words import WORDS
+
+REG_COUNT = len(WORDS)
+
 PAGE_SIZE = 1000
-page_count = lambda x: len(x) // PAGE_SIZE
+PAGE_COUNT = 1 + (REG_COUNT // PAGE_SIZE)
+
+BUCKET_SIZE = 200
+BUCKET_COUNT = 1 + (REG_COUNT // BUCKET_SIZE)

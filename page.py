@@ -9,10 +9,5 @@ class Page:
         else:
             raise Exception("Page is full")
 
-
-if __name__ == "__main__":
-    pages = [Page(3) for _ in range(2)]
-
-    for i in range(6):
-        try:
-            pages
+    def is_full(self):
+        return len(self._items) >= self._size
