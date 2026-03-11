@@ -32,7 +32,7 @@ EPIC 2: Construção do Índice Hash Estático
 
     [x] CA13: Ao final da construção, o índice contém todos os registros do arquivo.
 
-    [ ] CA14: O sistema exibe o tempo de construção do índice.
+    [x] CA14: O sistema exibe o tempo de construção do índice.
 
 EPIC 3: Tratamento de Colisões e Overflow
 

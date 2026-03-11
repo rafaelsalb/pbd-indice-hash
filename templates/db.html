@@ -14,6 +14,7 @@
         table {
             border-collapse: collapse;
             width: 100%;
+            position: relative;
         }
 
         th, td {
@@ -24,6 +25,27 @@
 
         th {
             background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        /* Make first column (row numbers) sticky */
+        tbody td:first-child,
+        thead th:first-child {
+            position: sticky;
+            left: 0;
+            background-color: #f2f2f2;
+            z-index: 5;
+        }
+
+        tbody td:first-child {
+            background-color: white;
+        }
+
+        /* Top-left corner cell needs higher z-index */
+        thead th:first-child {
+            z-index: 15;
         }
 
         #container {
@@ -54,35 +76,34 @@
         .search_result_row {
             background-color: lightgreen;
         }
+
+        .pagination {
+            margin: 10px 0;
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .pagination button {
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        .pagination button:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .pagination span {
+            margin: 0 10px;
+        }
     </style>
 </head>
 <body>
     <a href="{{ url_for('index') }}">Voltar para a Configuração</a>
     <div id="container">
-        <div id="index-section">
-            <div id="index-loading">Carregando índice...</div>
-            <div id="index-container">
-                <table id="index-table">
-                    <thead>
-                        <tr>
-                            <th>Bucket</th>
-                            <th colspan="{{ bucket_size }}">Registros (Página, Posição)</th>
-                        </tr>
-                        <tr>
-                            <th></th>
-                            {% for i in range(bucket_size) %}
-                            <th>{{ i }}</th>
-                            {% endfor %}
-                        </tr>
-                    </thead>
-                    <tbody id="index-body">
-                        <!-- Buckets will be loaded dynamically -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
         <div id="stats">
+            <h2>Configurações e Métricas</h2>
             <table border="1">
                 <tr>
                     <th>Configuração</th>
@@ -125,14 +146,66 @@
                     <td>Total de Overflow</td>
                     <td>{{ overflows }}</td>
                 </tr>
+                <tr>
+                    <td>Tempo de Construção do Índice (ms)</td>
+                    <td>{{ index_build_time }}</td>
+                </tr>
             </table>
         </div>
 
+        <div id="index-section">
+            <h2>Índice</h2>
+            <div id="index-loading">Carregando índice...</div>
+            <div>
+                <input type="text" id="index-search" placeholder="Buscar por registro no índice..."> <button onclick="search_index()">Buscar</button>
+            </div>
+            <div class="pagination">
+                <button onclick="loadIndexPage(1)" id="index-first">Primeira</button>
+                <button onclick="loadIndexPage(currentIndexPage - 1)" id="index-prev">Anterior</button>
+                <span id="index-page-info">Página 1 de 1</span>
+                <button onclick="loadIndexPage(currentIndexPage + 1)" id="index-next">Próxima</button>
+                <button onclick="loadIndexPage(totalIndexPages)" id="index-last">Última</button>
+                <span>|</span>
+                <input type="number" id="index-page-input" min="1" value="1" style="width: 60px;" onkeypress="if(event.key==='Enter') goToIndexPage()">
+                <button onclick="goToIndexPage()">Ir</button>
+            </div>
+            <div id="index-container">
+                <table id="index-table">
+                    <thead>
+                        <tr>
+                            <th>Bucket</th>
+                            <th colspan="{{ bucket_size }}">Registros (Página, Posição)</th>
+                        </tr>
+                        <tr>
+                            <th></th>
+                            {% for i in range(bucket_size) %}
+                            <th>{{ i }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody id="index-body">
+                        <!-- Buckets will be loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <div id="pages">
+            <h2>Páginas</h2>
             <div>
                 <input type="text" id="search" placeholder="Buscar por registro..."> <button onclick="search_pages()">Buscar</button>
             </div>
             <div id="loading">Carregando páginas...</div>
+            <div class="pagination">
+                <button onclick="loadPagesPage(1)" id="pages-first">Primeira</button>
+                <button onclick="loadPagesPage(currentPagesPage - 1)" id="pages-prev">Anterior</button>
+                <span id="pages-page-info">Página 1 de 1</span>
+                <button onclick="loadPagesPage(currentPagesPage + 1)" id="pages-next">Próxima</button>
+                <button onclick="loadPagesPage(totalPagesPages)" id="pages-last">Última</button>
+                <span>|</span>
+                <input type="number" id="pages-page-input" min="1" value="1" style="width: 60px;" onkeypress="if(event.key==='Enter') goToPagesPage()">
+                <button onclick="goToPagesPage()">Ir</button>
+            </div>
             <div id="disk">
                 <table id="pages-table">
                     <thead>
@@ -156,14 +229,29 @@
     </div>
 
     <script>
-        let pageSize = null;
+        let pageSize = {{ page_size }};
+        let currentPagesPage = 1;
+        let totalPagesPages = 1;
+        let totalPagesCount = 0;
+        let pagesPageSize = 50;
 
-        async function loadPages() {
-            const response = await fetch('/db/pages');
+        async function loadPagesPage(page) {
+            if (page < 1) return;
+            if (totalPagesPages > 1 && page > totalPagesPages) return;
+            currentPagesPage = page;
+            const response = await fetch(`/db/pages?page=${page}&page_size=${pagesPageSize}`);
+
+            // Get pagination info from headers
+            totalPagesCount = parseInt(response.headers.get('X-Total-Count')) || 0;
+            totalPagesPages = parseInt(response.headers.get('X-Total-Pages')) || 1;
+
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             const pagesBody = document.getElementById('pages-body');
             const loading = document.getElementById('loading');
+
+            // Clear existing content
+            pagesBody.innerHTML = '';
 
             let buffer = '';
             let pageCount = 0;
@@ -187,15 +275,39 @@
                         renderPage(page, pagesBody);
                         pageCount++;
                         loading.textContent = `Carregadas ${pageCount} páginas...`;
-                        if (pageSize === null) {
-                            pageSize = page.size;
-                        }
                     }
                 }
 
                 // Keep the last incomplete line in buffer
                 buffer = lines[lines.length - 1];
             }
+
+            updatePagesControls();
+        }
+
+        function updatePagesControls() {
+            document.getElementById('pages-page-info').textContent = `Página ${currentPagesPage} de ${totalPagesPages}`;
+            document.getElementById('pages-first').disabled = currentPagesPage === 1;
+            document.getElementById('pages-prev').disabled = currentPagesPage === 1;
+            document.getElementById('pages-next').disabled = currentPagesPage === totalPagesPages;
+            document.getElementById('pages-last').disabled = currentPagesPage === totalPagesPages;
+            document.getElementById('pages-page-input').value = currentPagesPage;
+            document.getElementById('pages-page-input').max = totalPagesPages;
+        }
+
+        function goToPagesPage() {
+            const input = document.getElementById('pages-page-input');
+            const pageNum = parseInt(input.value);
+            if (pageNum >= 1 && pageNum <= totalPagesPages) {
+                loadPagesPage(pageNum);
+            } else {
+                alert(`Por favor, insira um número de página entre 1 e ${totalPagesPages}`);
+                input.value = currentPagesPage;
+            }
+        }
+
+        async function loadPages() {
+            await loadPagesPage(1);
         }
 
         function renderPage(page, tbody) {
@@ -206,11 +318,8 @@
             indexCell.textContent = page.index;
             row.appendChild(indexCell);
 
-            // Use page.size from the page data
-            const size = pageSize !== null ? pageSize : page.size;
-
             // Record cells
-            for (let i = 0; i < size; i++) {
+            for (let i = 0; i < pageSize; i++) {
                 const cell = document.createElement('td');
                 if (i < page.items.length) {
                     cell.textContent = page.items[i];
@@ -239,14 +348,30 @@
             }
         }
 
-        let bucketSize = null;
+        let bucketSize = {{ bucket_size }};
+        let currentIndexPage = 1;
+        let totalIndexPages = 1;
+        let totalIndexCount = 0;
+        let indexPageSize = 50;
 
-        async function loadIndex() {
-            const response = await fetch('/db/index');
+        async function loadIndexPage(page) {
+            if (page < 1) return;
+            if (totalIndexPages > 1 && page > totalIndexPages) return;
+
+            currentIndexPage = page;
+            const response = await fetch(`/db/index?page=${page}&page_size=${indexPageSize}`);
+
+            // Get pagination info from headers
+            totalIndexCount = parseInt(response.headers.get('X-Total-Count')) || 0;
+            totalIndexPages = parseInt(response.headers.get('X-Total-Pages')) || 1;
+
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             const indexBody = document.getElementById('index-body');
             const indexLoading = document.getElementById('index-loading');
+
+            // Clear existing content
+            indexBody.innerHTML = '';
 
             let buffer = '';
             let bucketCount = 0;
@@ -267,35 +392,65 @@
                     const line = lines[i].trim();
                     if (line) {
                         const bucketData = JSON.parse(line);
+                        // Debug: log the first bucket to see structure
+                        if (bucketCount === 0) {
+                            console.log('First bucket data:', bucketData);
+                            console.log('Bucket items:', bucketData.bucket.items);
+                            if (bucketData.bucket.items.length > 0) {
+                                console.log('First item:', bucketData.bucket.items[0]);
+                            }
+                        }
                         renderBucket(bucketData, indexBody);
                         bucketCount++;
                         indexLoading.textContent = `Carregados ${bucketCount} buckets...`;
-                        if (bucketSize === null) {
-                            bucketSize = bucketData.bucket.size;
-                        }
                     }
                 }
 
                 // Keep the last incomplete line in buffer
                 buffer = lines[lines.length - 1];
             }
+
+            updateIndexControls();
+        }
+
+        function updateIndexControls() {
+            document.getElementById('index-page-info').textContent = `Página ${currentIndexPage} de ${totalIndexPages}`;
+            document.getElementById('index-first').disabled = currentIndexPage === 1;
+            document.getElementById('index-prev').disabled = currentIndexPage === 1;
+            document.getElementById('index-next').disabled = currentIndexPage === totalIndexPages;
+            document.getElementById('index-last').disabled = currentIndexPage === totalIndexPages;
+            document.getElementById('index-page-input').value = currentIndexPage;
+            document.getElementById('index-page-input').max = totalIndexPages;
+        }
+
+        function goToIndexPage() {
+            const input = document.getElementById('index-page-input');
+            const pageNum = parseInt(input.value);
+            if (pageNum >= 1 && pageNum <= totalIndexPages) {
+                loadIndexPage(pageNum);
+            } else {
+                alert(`Por favor, insira um número de página entre 1 e ${totalIndexPages}`);
+                input.value = currentIndexPage;
+            }
+        }
+
+        async function loadIndex() {
+            await loadIndexPage(1);
         }
 
         function renderBucket(bucketData, tbody) {
-            const size = bucketSize !== null ? bucketSize : bucketData.bucket.size;
-
             // Render main bucket
-            renderBucketRow(bucketData.index, bucketData.bucket, tbody, size, false);
+            renderBucketRow(bucketData.index, bucketData.bucket, tbody, bucketSize, false);
 
             // Render overflow buckets
             let overflow = bucketData.bucket.overflow;
             while (overflow !== null) {
-                renderBucketRow(bucketData.index, overflow, tbody, size, true);
+                renderBucketRow(bucketData.index, overflow, tbody, bucketSize, true);
                 overflow = overflow.overflow;
             }
         }
 
-        function renderBucketRow(bucketIndex, bucket, tbody, size, isOverflow) {
+        function renderBucketRow(bucketIndex, bucket, tbody, bucketSize, isOverflow) {
             const row = document.createElement('tr');
             if (isOverflow) {
                 row.classList.add('overflow-bucket');
@@ -306,18 +461,94 @@
             indexCell.textContent = isOverflow ? `${bucketIndex} (overflow)` : bucketIndex;
             row.appendChild(indexCell);
 
+            // Debug: log buckets that have items
+            if (bucket.items.length > 0 && !isOverflow) {
+                console.log(`Bucket ${bucketIndex} has ${bucket.items.length} items:`, bucket.items);
+                console.log('First item structure:', bucket.items[0]);
+            }
+
             // Record cells
-            for (let i = 0; i < size; i++) {
+            for (let i = 0; i < bucketSize; i++) {
                 const cell = document.createElement('td');
                 if (i < bucket.items.length) {
-                    const [item, pageAddr] = bucket.items[i];
-                    cell.textContent = `${item} (${pageAddr[0]},${pageAddr[1]})`;
+                    const item = bucket.items[i];
+                    const [word, pageAddr] = item;
+                    if (bucket.items.length > 0 && i === 0) {
+                        console.log(`  Item[0] - word: "${word}", pageAddr:`, pageAddr);
+                    }
+                    cell.textContent = `${word} (${pageAddr[0]},${pageAddr[1]})`;
                     cell.style.fontSize = '0.85em';
+                    // Add ID for search highlighting
+                    const overflowSuffix = isOverflow ? '-overflow' : '';
+                    cell.id = `bucket-${bucketIndex}${overflowSuffix}-${i}`;
                 }
                 row.appendChild(cell);
             }
 
             tbody.appendChild(row);
+        }
+
+        async function search_index() {
+            const query = document.getElementById("index-search").value;
+
+            // Clear previous highlights
+            clear_table_highlights('index-table');
+            clear_table_highlights('pages-table');
+
+            try {
+                const response = await fetch(`/db/search?query=${query}`);
+                const data = await response.json();
+
+                if (data.query_result && data.query_result.page_index !== -1) {
+                    // Navigate to and highlight the bucket in index
+                    const bucketPage = Math.floor(data.bucket_index / indexPageSize) + 1;
+                    if (bucketPage !== currentIndexPage) {
+                        await loadIndexPage(bucketPage);
+                    }
+
+                    const overflowSuffix = data.is_overflow ? '-overflow' : '';
+                    const cellId = `bucket-${data.bucket_index}${overflowSuffix}-${data.bucket_position}`;
+                    const cell = document.getElementById(cellId);
+
+                    if (cell) {
+                        cell.scrollIntoView({ behavior: "smooth", block: "center" });
+                        cell.classList.add('search_result');
+                        const row = cell.parentElement;
+                        row.classList.add('search_result_row');
+                    }
+
+                    // Navigate to and highlight the corresponding page
+                    const pageIndex = data.query_result.page_index;
+                    const recordIndex = data.query_result.record_index;
+                    const pagesPage = Math.floor(pageIndex / pagesPageSize) + 1;
+
+                    if (pagesPage !== currentPagesPage) {
+                        await loadPagesPage(pagesPage);
+                    }
+
+                    const pageCellId = `#${pageIndex}-${recordIndex}`;
+                    const pageCell = document.querySelector(`[id="${pageCellId}"]`);
+
+                    if (pageCell) {
+                        pageCell.scrollIntoView({ behavior: "smooth", block: "center" });
+                        pageCell.classList.add('search_result');
+                        const pageRow = pageCell.parentElement;
+                        pageRow.classList.add('search_result_row');
+                    }
+                } else {
+                    alert("Registro não encontrado no índice.");
+                }
+            } catch (error) {
+                console.error("Erro ao buscar no índice:", error);
+                alert("Erro ao buscar no índice.");
+            }
+        }
+
+        function clear_table_highlights(tableId) {
+            const cells = document.querySelectorAll(`#${tableId} td`);
+            cells.forEach(cell => cell.classList.remove('search_result'));
+            const rows = document.querySelectorAll(`#${tableId} tr`);
+            rows.forEach(row => row.classList.remove('search_result_row'));
         }
 
         // Load index and pages on page load

@@ -2,6 +2,8 @@ import time
 
 from bucket import Bucket
 from hash_function import prime_sum
+from index_result import IndexResult
+from query_result import QueryResult
 
 
 class Index:
@@ -34,6 +36,14 @@ class Index:
         time_a = time.monotonic_ns()
         _hash = prime_sum(item, self.n_buckets)
         bucket = self._buckets[_hash]
-        page_address = bucket.search(item)  # vai retornar -1 se não encontrar
+        print(f"Searching for item '{item}' in bucket {_hash}")
+        bucket_position, (page_index, record_index) = bucket.search(item)  # vai retornar -1 se não encontrar
         time_b = time.monotonic_ns()
-        return page_address, (time_b - time_a) / 1e6
+        result = IndexResult(
+            found=page_index != -1,
+            search_time_ms=(time_b - time_a) / 1e6,
+            bucket_index=_hash,
+            bucket_position=bucket_position if page_index != -1 else None,
+            query_result=QueryResult(page_index=page_index, record_index=record_index)
+        )
+        return result

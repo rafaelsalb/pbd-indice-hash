@@ -37,9 +37,12 @@ class Bucket:
         return len(self._items) >= self._size
 
     def search(self, reg):
-        for r, page_address in self._items:
+        print(f"Searching for record '{reg}' in bucket with items {[item for item, _ in self._items]}")
+        for i, (r, (page_index, record_index)) in enumerate(self._items):
+            print(f"Checking record '{r}' against '{reg}'")
             if r == reg:
-                return page_address
+                print(f"Record '{reg}' found with page address ({page_index}, {record_index})")
+                return i, (page_index, record_index)
         if self._overflow is not None:
             return self._overflow.search(reg)
-        return -1
+        return -1, -1

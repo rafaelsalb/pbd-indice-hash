@@ -1,8 +1,11 @@
+from flask import logging
 import time
 
 from config import BUCKET_SIZE, PAGE_SIZE, REG_COUNT
 from index import Index
+from index_result import IndexResult
 from page import Page
+from query_result import QueryResult
 from words import WORDS
 
 
@@ -18,6 +21,7 @@ class Database:
         self._collisions = 0
         self._overflows = 0
         self._pages = tuple([Page(page_size, i) for i in range(self._n_pages)])
+        self._index_build_time = 0
 
     @property
     def index(self):
@@ -63,6 +67,10 @@ class Database:
     def set_pages(self, _):
         raise Exception("Pages cannot be set directly")
 
+    @property
+    def index_build_time(self):
+        return self._index_build_time
+
     def increase_collisions(self):
         self._collisions += 1
 
@@ -81,6 +89,7 @@ class Database:
             return (-1, -1), (time_b - time_a) / 1e6
 
     def fill(self, regs: list[str]):
+        time_a = time.monotonic_ns()
         for reg in regs:
             for page in self._pages:
                 if not page.is_full():
@@ -89,11 +98,23 @@ class Database:
                     break
             else:
                 raise Exception("All pages are full")
+        time_b = time.monotonic_ns()
+        self._index_build_time = (time_b - time_a) / 1e6
 
     def query(self, item: str) -> int | None:
-        (page_index, record_index), search_time = self.index.search(item)
-        assert self.pages[page_index].items[record_index] == item, "Index returned incorrect page address"
-        return (page_index, record_index), search_time
+        print(f"Querying for item '{item}' using index...")
+        result = self.index.search(item)
+        if not result.found:
+            print(f"Item '{item}' not found in index.")
+            return QueryResult(
+                found=False,
+                page_index=-1,
+                record_index=-1,
+                search_time_ms=result.search_time_ms,
+                bucket_index=result.bucket_index,
+                bucket_position=result.bucket_position
+            )
+        return result
 
 
 if __name__ == "__main__":
