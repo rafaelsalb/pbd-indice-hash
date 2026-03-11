@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title></title>
+</head>
+<body>
+    <h1>Configuração do Banco de Dados</h1>
+    <form action="/config" method="post">
+        <label for="page_size">Número de Registros por Página:</label>
+        <input type="number" id="page_size" name="page_size" required><br><br>
+
+        <label for="bucket_size">Número de Buckets:</label>
+        <input type="number" id="bucket_size" name="bucket_size" required><br><br>
+
+        <input type="submit" value="Salvar Configuração">
+</body>
+</html>

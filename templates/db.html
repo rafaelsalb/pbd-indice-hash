@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <a href="{{ url_for('index') }}">Voltar para a Configuração</a>
+    <table border="1">
+        <tr>
+            <th>Configuração</th>
+            <th>Valor</th>
+        </tr>
+        <tr>
+            <td>Número de Registros por Página</td>
+            <td>{{ page_size }}</td>
+        </tr>
+        <tr>
+            <td>Número de Buckets</td>
+            <td>{{ bucket_size }}</td>
+        </tr>
+    </table>
+
+    <table border="1">
+        <tr>
+            <th>Métrica</th>
+            <th>Valor</th>
+        </tr>
+        <tr>
+            <td>Total de Colisões</td>
+            <td>{{ collisions }}</td>
+        </tr>
+        <tr>
+            <td>Total de Overflow</td>
+            <td>{{ overflows }}</td>
+        </tr>
+    </table>
+</body>
+</html>

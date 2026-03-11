@@ -1,7 +1,8 @@
 class Bucket:
-    def __init__(self, fr: int = 4, increase_collisions=None, increase_overflows=None):
+    def __init__(self, fr: int = 4, increase_collisions=None, increase_overflows=None, is_overflow=False):
         self._items = []
         self._size = fr
+        self._is_overflow = is_overflow
         self._overflow = None
         self.increase_collisions = increase_collisions or (lambda: None)
         self.increase_overflows = increase_overflows or (lambda: None)
@@ -14,15 +15,31 @@ class Bucket:
     def size(self):
         return self._size
 
-    def add(self, item):
+    @property
+    def is_overflow(self):
+        return self._is_overflow
+
+    @is_overflow.setter
+    def is_overflow(self, _):
+        raise Exception("is_overflow cannot be set directly")
+
+    def add(self, reg, page_address):
         if len(self._items) < self._size:
-            self._items.append(item)
+            self._items.append((reg, page_address))
         else:
             if self._overflow is None:
                 self.increase_collisions()
                 self.increase_overflows()
-                self._overflow = Bucket(self._size, self.increase_collisions, self.increase_overflows)
-            self._overflow.add(item)
+                self._overflow = Bucket(self._size, self.increase_collisions, self.increase_overflows, True)
+            self._overflow.add(reg, page_address)
 
     def is_full(self):
         return len(self._items) >= self._size
+
+    def search(self, reg):
+        for r, page_address in self._items:
+            if r == reg:
+                return page_address
+        if self._overflow is not None:
+            return self._overflow.search(reg)
+        return -1
