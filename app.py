@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, Response, stream_with_context
+import json
 
 from db import Database
 
@@ -17,8 +18,12 @@ def config_db():
     global db
     bucket_size = int(request.form.get("bucket_size"))
     page_size = int(request.form.get("page_size"))
+    words_file = request.form.get("words")
+    with open(words_file, "r") as f:
+        words = [line.strip() for line in f]
 
     db = Database(bucket_size, page_size)
+    db.fill(words)
     return redirect(url_for("show_db"))
 
 @app.get("/db")
@@ -33,9 +38,53 @@ def show_db():
         page_size=db.page_size,
         collisions=db.collisions,
         overflows=db.overflows,
-        pages=db.index.pages,
-        buckets=db.index.buckets,
     )
+
+@app.get("/db/pages")
+def get_pages():
+    if db is None:
+        return []
+
+    def generate():
+        for page in db.pages:
+            page_data = {
+                "size": page._size,
+                "index": page.index,
+                "items": page.items,
+                "is_full": page.is_full()
+            }
+            yield json.dumps(page_data) + "\n"
+
+    return Response(stream_with_context(generate()), mimetype='application/x-ndjson')
+
+@app.get("/db/index")
+def get_index():
+    if db is None:
+        return []
+
+    def serialize_bucket(bucket):
+        """Recursively serialize a bucket including its overflow chain"""
+        overflow_data = None
+        if bucket._overflow is not None:
+            overflow_data = serialize_bucket(bucket._overflow)
+
+        return {
+            "items": [(item, page_addr) for item, page_addr in bucket.items],
+            "size": bucket.size,
+            "is_overflow": bucket.is_overflow,
+            "overflow": overflow_data
+        }
+
+    def generate():
+        for i, bucket in enumerate(db.index.buckets):
+            bucket_data = {
+                "index": i,
+                "bucket": serialize_bucket(bucket)
+            }
+            yield json.dumps(bucket_data) + "\n"
+
+    return Response(stream_with_context(generate()), mimetype='application/x-ndjson')
+
 
 
 if __name__ == "__main__":

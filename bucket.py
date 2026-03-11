@@ -23,7 +23,7 @@ class Bucket:
     def is_overflow(self, _):
         raise Exception("is_overflow cannot be set directly")
 
-    def add(self, reg, page_address):
+    def add(self, reg, page_address: tuple[int, int]):
         if len(self._items) < self._size:
             self._items.append((reg, page_address))
         else:

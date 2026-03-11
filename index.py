@@ -1,10 +1,7 @@
-from pprint import pprint
 import time
 
 from bucket import Bucket
-from config import BUCKET_COUNT, BUCKET_SIZE, PAGE_COUNT, PAGE_SIZE
 from hash_function import prime_sum
-from words import WORDS
 
 
 class Index:
@@ -25,7 +22,7 @@ class Index:
     def bucket_size(self):
         return self._bucket_size
 
-    def add(self, item: str, page_address: int):
+    def add(self, item: str, page_address: tuple[int, int]):
         _hash = prime_sum(item, self.n_buckets)
         try:
             self._buckets[_hash].add(item, page_address)

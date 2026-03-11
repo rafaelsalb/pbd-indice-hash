@@ -4,37 +4,323 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
+
+    <style>
+        #stats {
+            gap: 20px;
+            flex: 1;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        #container {
+            display: flex;
+            gap: 20px;
+            height: 80vh;
+        }
+
+        #index-section, #pages {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #disk, #index-container {
+            overflow: scroll;
+        }
+
+        .overflow-bucket {
+            background-color: #fff3cd;
+        }
+
+        .search_result {
+            background-color: green;
+        }
+
+        .search_result_row {
+            background-color: lightgreen;
+        }
+    </style>
 </head>
 <body>
     <a href="{{ url_for('index') }}">Voltar para a Configuração</a>
-    <table border="1">
-        <tr>
-            <th>Configuração</th>
-            <th>Valor</th>
-        </tr>
-        <tr>
-            <td>Número de Registros por Página</td>
-            <td>{{ page_size }}</td>
-        </tr>
-        <tr>
-            <td>Número de Buckets</td>
-            <td>{{ bucket_size }}</td>
-        </tr>
-    </table>
+    <div id="container">
+        <div id="index-section">
+            <div id="index-loading">Carregando índice...</div>
+            <div id="index-container">
+                <table id="index-table">
+                    <thead>
+                        <tr>
+                            <th>Bucket</th>
+                            <th colspan="{{ bucket_size }}">Registros (Página, Posição)</th>
+                        </tr>
+                        <tr>
+                            <th></th>
+                            {% for i in range(bucket_size) %}
+                            <th>{{ i }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody id="index-body">
+                        <!-- Buckets will be loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
-    <table border="1">
-        <tr>
-            <th>Métrica</th>
-            <th>Valor</th>
-        </tr>
-        <tr>
-            <td>Total de Colisões</td>
-            <td>{{ collisions }}</td>
-        </tr>
-        <tr>
-            <td>Total de Overflow</td>
-            <td>{{ overflows }}</td>
-        </tr>
-    </table>
+        <div id="stats">
+            <table border="1">
+                <tr>
+                    <th>Configuração</th>
+                    <th>Valor</th>
+                </tr>
+                <tr>
+                    <td>Total de Páginas</td>
+                    <td>{{ n_pages }}</td>
+                </tr>
+                <tr>
+                    <td>Número de Registros por Página</td>
+                    <td>{{ page_size }}</td>
+                </tr>
+                <tr>
+                    <td>Total de Buckets</td>
+                    <td>{{ n_buckets }}</td>
+                </tr>
+                <tr>
+                    <td>Número de Registros por Bucket</td>
+                    <td>{{ bucket_size }}</td>
+                </tr>
+            </table>
+
+            <br>
+
+            <table border="1">
+                <tr>
+                    <th>Métrica</th>
+                    <th>Valor</th>
+                </tr>
+                <tr>
+                    <td>Total de Colisões</td>
+                    <td>{{ collisions }}</td>
+                </tr>
+                <tr>
+                    <td>Total de Overflow</td>
+                    <td>{{ overflows }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <div id="pages">
+            <div>
+                <input type="text" id="search" placeholder="Buscar por registro..."> <button onclick="search_pages()">Buscar</button>
+            </div>
+            <div id="loading">Carregando páginas...</div>
+            <div id="disk">
+                <table id="pages-table">
+                    <thead>
+                        <tr>
+                            <th>Página</th>
+                            <th colspan="{{ page_size }}">Registros</th>
+                        </tr>
+                        <tr>
+                            <th></th>
+                            {% for i in range(page_size) %}
+                            <th>{{ i }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody id="pages-body">
+                        <!-- Pages will be loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let pageSize = null;
+
+        async function loadPages() {
+            const response = await fetch('/db/pages');
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            const pagesBody = document.getElementById('pages-body');
+            const loading = document.getElementById('loading');
+
+            let buffer = '';
+            let pageCount = 0;
+
+            while (true) {
+                const { done, value } = await reader.read();
+
+                if (done) {
+                    loading.style.display = 'none';
+                    break;
+                }
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+
+                // Process all complete lines
+                for (let i = 0; i < lines.length - 1; i++) {
+                    const line = lines[i].trim();
+                    if (line) {
+                        const page = JSON.parse(line);
+                        renderPage(page, pagesBody);
+                        pageCount++;
+                        loading.textContent = `Carregadas ${pageCount} páginas...`;
+                        if (pageSize === null) {
+                            pageSize = page.size;
+                        }
+                    }
+                }
+
+                // Keep the last incomplete line in buffer
+                buffer = lines[lines.length - 1];
+            }
+        }
+
+        function renderPage(page, tbody) {
+            const row = document.createElement('tr');
+
+            // Page index cell
+            const indexCell = document.createElement('td');
+            indexCell.textContent = page.index;
+            row.appendChild(indexCell);
+
+            // Use page.size from the page data
+            const size = pageSize !== null ? pageSize : page.size;
+
+            // Record cells
+            for (let i = 0; i < size; i++) {
+                const cell = document.createElement('td');
+                if (i < page.items.length) {
+                    cell.textContent = page.items[i];
+                    cell.id = `#${page.index}-${i}`;
+                }
+                row.appendChild(cell);
+            }
+
+            tbody.appendChild(row);
+        }
+
+        function search_pages() {
+            // Remove previous search highlighting
+            const cells = document.querySelectorAll('#pages-body td');
+            cells.forEach(cell => cell.classList.remove('search_result'));
+            const rows = document.querySelectorAll('#pages-body tr');
+            rows.forEach(row => row.classList.remove('search_result_row'));
+
+            const query = document.getElementById("search").value;
+            const cell = document.querySelector(`[id="#${query}"]`);
+            if (cell) {
+                cell.scrollIntoView({ behavior: "smooth", block: "center" });
+                cell.classList.add('search_result');
+                const row = cell.parentElement;
+                row.classList.add('search_result_row');
+            }
+        }
+
+        let bucketSize = null;
+
+        async function loadIndex() {
+            const response = await fetch('/db/index');
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            const indexBody = document.getElementById('index-body');
+            const indexLoading = document.getElementById('index-loading');
+
+            let buffer = '';
+            let bucketCount = 0;
+
+            while (true) {
+                const { done, value } = await reader.read();
+
+                if (done) {
+                    indexLoading.style.display = 'none';
+                    break;
+                }
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+
+                // Process all complete lines
+                for (let i = 0; i < lines.length - 1; i++) {
+                    const line = lines[i].trim();
+                    if (line) {
+                        const bucketData = JSON.parse(line);
+                        renderBucket(bucketData, indexBody);
+                        bucketCount++;
+                        indexLoading.textContent = `Carregados ${bucketCount} buckets...`;
+                        if (bucketSize === null) {
+                            bucketSize = bucketData.bucket.size;
+                        }
+                    }
+                }
+
+                // Keep the last incomplete line in buffer
+                buffer = lines[lines.length - 1];
+            }
+        }
+
+        function renderBucket(bucketData, tbody) {
+            const size = bucketSize !== null ? bucketSize : bucketData.bucket.size;
+
+            // Render main bucket
+            renderBucketRow(bucketData.index, bucketData.bucket, tbody, size, false);
+
+            // Render overflow buckets
+            let overflow = bucketData.bucket.overflow;
+            while (overflow !== null) {
+                renderBucketRow(bucketData.index, overflow, tbody, size, true);
+                overflow = overflow.overflow;
+            }
+        }
+
+        function renderBucketRow(bucketIndex, bucket, tbody, size, isOverflow) {
+            const row = document.createElement('tr');
+            if (isOverflow) {
+                row.classList.add('overflow-bucket');
+            }
+
+            // Bucket index cell
+            const indexCell = document.createElement('td');
+            indexCell.textContent = isOverflow ? `${bucketIndex} (overflow)` : bucketIndex;
+            row.appendChild(indexCell);
+
+            // Record cells
+            for (let i = 0; i < size; i++) {
+                const cell = document.createElement('td');
+                if (i < bucket.items.length) {
+                    const [item, pageAddr] = bucket.items[i];
+                    cell.textContent = `${item} (${pageAddr[0]},${pageAddr[1]})`;
+                    cell.style.fontSize = '0.85em';
+                }
+                row.appendChild(cell);
+            }
+
+            tbody.appendChild(row);
+        }
+
+        // Load index and pages on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadIndex();
+            loadPages();
+        });
+    </script>
 </body>
 </html>

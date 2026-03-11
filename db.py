@@ -17,7 +17,7 @@ class Database:
         self._index = Index(self._n_buckets, bucket_size, self.increase_collisions, self.increase_overflows)
         self._collisions = 0
         self._overflows = 0
-        self._pages = tuple([Page(page_size) for _ in range(self._n_pages)])
+        self._pages = tuple([Page(page_size, i) for i in range(self._n_pages)])
 
     @property
     def index(self):
@@ -41,19 +41,19 @@ class Database:
 
     @property
     def bucket_size(self):
-        return self._index.bucket_size
+        return self._bucket_size
 
     @property
     def n_buckets(self):
-        return self._index.n_buckets
+        return self._n_buckets
 
     @property
     def page_size(self):
-        return self._index.page_size
+        return self._page_size
 
     @property
     def n_pages(self):
-        return self._index.n_pages
+        return self._n_pages
 
     @property
     def pages(self):
@@ -72,25 +72,28 @@ class Database:
     def table_scan(self, item: str) -> int | None:
         time_a = time.monotonic_ns()
         for i, page in enumerate(self._pages):
-            if item in page.items:
+            j = page.items.index(item) if item in page.items else -1
+            if j != -1:
                 time_b = time.monotonic_ns()
-                return i, (time_b - time_a) / 1e6
+                return (i, j), (time_b - time_a) / 1e6
         else:
             time_b = time.monotonic_ns()
-            return -1, (time_b - time_a) / 1e6
+            return (-1, -1), (time_b - time_a) / 1e6
 
     def fill(self, regs: list[str]):
         for reg in regs:
-            for i, page in enumerate(self._pages):
+            for page in self._pages:
                 if not page.is_full():
-                    page.add(reg)
-                    self.index.add(reg, i)
+                    address = page.add(reg)
+                    self.index.add(reg, address)
                     break
             else:
                 raise Exception("All pages are full")
 
     def query(self, item: str) -> int | None:
-        return self.index.search(item)
+        (page_index, record_index), search_time = self.index.search(item)
+        assert self.pages[page_index].items[record_index] == item, "Index returned incorrect page address"
+        return (page_index, record_index), search_time
 
 
 if __name__ == "__main__":
