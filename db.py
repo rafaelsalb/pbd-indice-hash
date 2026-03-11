@@ -1,9 +1,7 @@
-from flask import logging
 import time
 
 from config import BUCKET_SIZE, PAGE_SIZE, REG_COUNT
 from index import Index
-from index_result import IndexResult
 from page import Page
 from query_result import QueryResult
 from words import WORDS

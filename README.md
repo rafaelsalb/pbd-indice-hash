@@ -38,7 +38,7 @@ EPIC 3: Tratamento de Colisões e Overflow
 
     [x] CA15: O sistema insere registros mesmo quando múltiplas chaves geram o mesmo bucket.
 
-    [ ] CA16: O sistema contabiliza colisões que excedem o tamanho definido para o bucket.
+    [x] CA16: O sistema contabiliza colisões que excedem o tamanho definido para o bucket.
 
     [x] CA17: Quando a capacidade (FR) for excedida, o sistema usa a estratégia de bucket overflow.
 
@@ -46,9 +46,9 @@ EPIC 3: Tratamento de Colisões e Overflow
 
 EPIC 4: Pesquisa por Índice
 
-    [ ] CA19: Ao buscar uma chave, o sistema mostra se foi encontrada, em qual página está e o custo estimado em leituras de página.
+    [?] CA19: Ao buscar uma chave, o sistema mostra se foi encontrada, em qual página está e o *custo estimado em leituras de página*.
 
-    [ ] CA20: Se a chave não existir, o sistema informa "não encontrada".
+    [x] CA20: Se a chave não existir, o sistema informa "não encontrada".
 
 EPIC 5: Table Scan e Comparação
 

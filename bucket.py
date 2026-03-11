@@ -25,10 +25,11 @@ class Bucket:
 
     def add(self, reg, page_address: tuple[int, int]):
         if len(self._items) < self._size:
+            if self.is_overflow:
+                self.increase_collisions()
             self._items.append((reg, page_address))
         else:
             if self._overflow is None:
-                self.increase_collisions()
                 self.increase_overflows()
                 self._overflow = Bucket(self._size, self.increase_collisions, self.increase_overflows, True)
             self._overflow.add(reg, page_address)
