@@ -7,6 +7,7 @@ from db import Database
 app = Flask(__name__)
 
 db: Database | None = None
+word_count: int = 0
 
 
 @app.get("/")
@@ -15,12 +16,18 @@ def index():
 
 @app.post("/config")
 def config_db():
-    global db
+    global db, word_count
     bucket_size = int(request.form.get("bucket_size"))
     page_size = int(request.form.get("page_size"))
     words_file = request.form.get("words")
-    with open(words_file, "r") as f:
-        words = [line.strip() for line in f]
+    try:
+        with open(words_file, "r") as f:
+            words = [line.strip() for line in f]
+            word_count = len(words)
+            if word_count == 0:
+                return f"O arquivo '{words_file}' está vazio.", 400
+    except Exception:
+        return f"Houve um erro ao ler o arquivo de palavras.", 400
 
     db = Database(bucket_size, page_size)
     db.fill(words)
@@ -32,6 +39,7 @@ def show_db():
         return redirect(url_for("index"))
     return render_template(
         "db.html",
+        registries=word_count,
         n_buckets=db.n_buckets,
         bucket_size=db.bucket_size,
         n_pages=db.n_pages,
