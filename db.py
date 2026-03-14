@@ -13,12 +13,12 @@ class Database:
         assert not page_size is None and page_size > 0, "Page size must be a positive integer"
         self._bucket_size = bucket_size
         self._page_size = page_size
-        self._n_buckets = 1 + (REG_COUNT // bucket_size)
-        self._n_pages = 1 + (REG_COUNT // page_size)
-        self._index = Index(self._n_buckets, bucket_size, self.increase_collisions, self.increase_overflows)
+        self._n_buckets = None
+        self._n_pages = None
+        self._index = None
         self._collisions = 0
         self._overflows = 0
-        self._pages = tuple([Page(page_size, i) for i in range(self._n_pages)])
+        self._pages = None
         self._index_build_time = 0
 
     @property
@@ -87,6 +87,11 @@ class Database:
             return (-1, -1), (time_b - time_a) / 1e6
 
     def fill(self, regs: list[str]):
+        self._n_buckets = 1 + (len(regs) // self.bucket_size)
+        self._n_pages = 1 + (len(regs) // self.page_size)
+        self._pages = tuple([Page(self.page_size, i) for i in range(self._n_pages)])
+        self._index = Index(self._n_buckets, self.bucket_size, self.increase_collisions, self.increase_overflows)
+        # assert self.n_buckets <= len(regs) / self.bucket_size, "O número de buckets deve ser maior que o número de registros dividido pelo tamanho do bucket para evitar colisões excessivas"
         time_a = time.monotonic_ns()
         for reg in regs:
             for page in self._pages:
@@ -113,6 +118,26 @@ class Database:
                 bucket_position=result.bucket_position
             )
         return result
+
+    def table_scan_query(self, item: str) -> int | None:
+        time_a = time.monotonic_ns()
+        for i, page in enumerate(self._pages):
+            for j in range(page.size):
+                if page.items[j] == item:
+                    time_b = time.monotonic_ns()
+                    return QueryResult(
+                        found=True,
+                        page_index=i,
+                        record_index=j,
+                        search_time_ms=(time_b - time_a) / 1e6
+                    )
+        time_b = time.monotonic_ns()
+        return QueryResult(
+            found=False,
+            page_index=-1,
+            record_index=-1,
+            search_time_ms=(time_b - time_a) / 1e6
+        )
 
 
 if __name__ == "__main__":

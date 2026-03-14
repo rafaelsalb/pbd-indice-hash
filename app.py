@@ -31,8 +31,11 @@ def config_db():
     except Exception:
         return f"Houve um erro ao ler o arquivo de palavras.", 400
 
-    db = Database(bucket_size, page_size)
-    db.fill(words)
+    try:
+        db = Database(bucket_size, page_size)
+        db.fill(words)
+    except Exception as e:
+        return f"Houve um erro ao configurar o banco de dados: {e}", 400
     # assert type(db.index.buckets[0].items[0]) == tuple, "Expected items in buckets to be tuples of (str, tuple[int, int])"
     return redirect(url_for("show_db"))
 
@@ -49,7 +52,8 @@ def show_db():
         page_size=db.page_size,
         collisions=db.collisions,
         overflows=db.overflows,
-        index_build_time=db.index_build_time
+        index_build_time=db.index_build_time,
+        collision_rate=db.collisions / word_count
     )
 
 @app.get("/db/pages")
@@ -158,6 +162,21 @@ def search_db():
     # print(f"Search for '{query}' returned page index {page_index}, record index {record_index} with search time {search_time} ms")
     if result.query_result.page_index == -1:
         return {"message": f"Registro '{query}' não encontrado.", "search_time_ms": result.search_time}
+
+    return asdict(result)
+
+@app.get("/db/table_scan")
+def search_table_scan():
+    if db is None:
+        return {"error": "Database not configured"}, 400
+
+    query = request.args.get("query", "")
+    if not query:
+        return {"error": "Query parameter is required"}, 400
+
+    result = db.table_scan_query(query)
+    if not result.found:
+        return {"message": f"Registro '{query}' não encontrado.", "search_time_ms": result.search_time_ms}
 
     return asdict(result)
 

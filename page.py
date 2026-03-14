@@ -18,6 +18,10 @@ class Page:
     def index(self):
         return self._index
 
+    @property
+    def size(self):
+        return self._size
+
     def add(self, item):
         i = len(self._items)
         if i < self._size:

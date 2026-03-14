@@ -1,0 +1,10 @@
+jeito
+aberto
+fechado
+hoje
+ontem
+amanhã
+roxo
+verde
+azul
+vermelho

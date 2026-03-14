@@ -331,20 +331,44 @@
             tbody.appendChild(row);
         }
 
-        function search_pages() {
-            // Remove previous search highlighting
-            const cells = document.querySelectorAll('#pages-body td');
-            cells.forEach(cell => cell.classList.remove('search_result'));
-            const rows = document.querySelectorAll('#pages-body tr');
-            rows.forEach(row => row.classList.remove('search_result_row'));
-
+        async function search_pages() {
             const query = document.getElementById("search").value;
-            const cell = document.querySelector(`[id="#${query}"]`);
-            if (cell) {
-                cell.scrollIntoView({ behavior: "smooth", block: "center" });
-                cell.classList.add('search_result');
-                const row = cell.parentElement;
-                row.classList.add('search_result_row');
+
+            // Clear previous highlights
+            clear_table_highlights('pages-table');
+
+            try {
+                const response = await fetch(`/db/table_scan?query=${query}`);
+                const data = await response.json();
+
+                if (data.found) {
+                    const pageIndex = data.page_index;
+                    const recordIndex = data.record_index;
+                    const pagesPage = Math.floor(pageIndex / pagesPageSize) + 1;
+
+                    // Load the correct page if necessary
+                    if (pagesPage !== currentPagesPage) {
+                        await loadPagesPage(pagesPage);
+                    }
+
+                    // Find and highlight the cell
+                    const pageCellId = `#${pageIndex}-${recordIndex}`;
+                    const pageCell = document.querySelector(`[id="${pageCellId}"]`);
+
+                    if (pageCell) {
+                        pageCell.scrollIntoView({ behavior: "smooth", block: "center" });
+                        pageCell.classList.add('search_result');
+                        const pageRow = pageCell.parentElement;
+                        pageRow.classList.add('search_result_row');
+                    } else {
+                        alert(`Registro encontrado na página ${pageIndex}, posição ${recordIndex}, mas célula não foi renderizada.`);
+                    }
+                } else {
+                    alert("Registro não encontrado.");
+                }
+            } catch (error) {
+                console.error("Erro ao buscar:", error);
+                alert("Erro ao realizar busca.");
             }
         }
 

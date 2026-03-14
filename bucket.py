@@ -4,8 +4,8 @@ class Bucket:
         self._size = fr
         self._is_overflow = is_overflow
         self._overflow = None
-        self.increase_collisions = increase_collisions or (lambda: None)
-        self.increase_overflows = increase_overflows or (lambda: None)
+        self.increase_collisions = increase_collisions
+        self.increase_overflows = increase_overflows
 
     @property
     def items(self):
