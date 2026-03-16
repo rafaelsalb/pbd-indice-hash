@@ -16,7 +16,7 @@ EPIC 1: Carga e Organização dos Dados
 
     [x] CA06: Após carregar o arquivo, o sistema exibe a quantidade total de páginas calculada.
 
-    [?] CA07: O sistema exibe na interface a primeira e a última página, contendo o número da página e os primeiros 5 registros dela.
+    [x] CA07: O sistema exibe na interface a primeira e a última página, contendo o número da página e os primeiros 5 registros dela.
 
 EPIC 2: Construção do Índice Hash Estático
 
@@ -42,7 +42,7 @@ EPIC 3: Tratamento de Colisões e Overflow
 
     [x] CA17: Quando a capacidade (FR) for excedida, o sistema usa a estratégia de bucket overflow.
 
-    [ ] CA18: O sistema contabiliza quantos buckets entraram em overflow.
+    [x] CA18: O sistema contabiliza quantos buckets entraram em overflow.
 
 EPIC 4: Pesquisa por Índice
 
@@ -54,7 +54,7 @@ EPIC 5: Table Scan e Comparação
 
     [ ] CA21: O sistema exibe os registros lidos durante o table scan.
 
-    [ ] CA22: O sistema informa o número da página onde encontrou a chave e o custo (páginas lidas) do scan.
+    [?] CA22: O sistema informa o número da página onde encontrou a chave e o custo (páginas lidas) do scan.
 
     [ ] CA23: O sistema exibe o tempo de execução da busca com índice e do table scan.
 
@@ -62,9 +62,9 @@ EPIC 5: Table Scan e Comparação
 
 EPIC 6: Estatísticas e Métricas
 
-    [ ] CA25: A interface mostra o percentual de colisões após construir o índice.
+    [x] CA25: A interface mostra o percentual de colisões após construir o índice.
 
-    [ ] CA26: A interface mostra o percentual de overflow após construir o índice.
+    [x] CA26: A interface mostra o percentual de overflow após construir o índice.
 
 EPIC 7: Interface Gráfica e Visualização
 
@@ -72,4 +72,4 @@ EPIC 7: Interface Gráfica e Visualização
 
     [x] CA28: O usuário consegue visualizar os buckets e seus conteúdos.
 
-    [ ] CA29: Durante a busca, o bucket e a página acessados são destacados visualmente.
+    [x] CA29: Durante a busca, o bucket e a página acessados são destacados visualmente.

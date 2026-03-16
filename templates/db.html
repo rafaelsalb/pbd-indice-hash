@@ -150,6 +150,13 @@
                     <td>Tempo de Construção do Índice (ms)</td>
                     <td>{{ index_build_time }}</td>
                 </tr>
+                <td>Taxa de Colisões</td>
+                    <td>{{ collision_rate }}%</td>
+                </tr>
+                <tr>
+                    <td>Taxa de Overflow</td>
+                    <td>{{ overflow_rate }}%</td>
+                </tr>
             </table>
         </div>
 
@@ -168,6 +175,7 @@
                 <span>|</span>
                 <input type="number" id="index-page-input" min="1" value="1" style="width: 60px;" onkeypress="if(event.key==='Enter') goToIndexPage()">
                 <button onclick="goToIndexPage()">Ir</button>
+                <span id="index-search-time"></span>
             </div>
             <div id="index-container">
                 <table id="index-table">
@@ -205,6 +213,7 @@
                 <span>|</span>
                 <input type="number" id="pages-page-input" min="1" value="1" style="width: 60px;" onkeypress="if(event.key==='Enter') goToPagesPage()">
                 <button onclick="goToPagesPage()">Ir</button>
+                <span id="table-scan-search-time"></span>
             </div>
             <div id="disk">
                 <table id="pages-table">
@@ -342,6 +351,8 @@
                 const data = await response.json();
 
                 if (data.found) {
+                    const searchTime = data.search_time_ms.toFixed(2);
+                    document.getElementById('table-scan-search-time').textContent = ` (Tempo de busca: ${searchTime} ms)`;
                     const pageIndex = data.page_index;
                     const recordIndex = data.record_index;
                     const pagesPage = Math.floor(pageIndex / pagesPageSize) + 1;
@@ -524,6 +535,8 @@
                 const data = await response.json();
 
                 if (data.query_result && data.query_result.page_index !== -1) {
+                    const searchTime = data.search_time_ms.toFixed(2);
+                    document.getElementById('index-search-time').textContent = ` (Tempo de busca: ${searchTime} ms)`;
                     // Navigate to and highlight the bucket in index
                     const bucketPage = Math.floor(data.bucket_index / indexPageSize) + 1;
                     if (bucketPage !== currentIndexPage) {

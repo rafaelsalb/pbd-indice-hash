@@ -53,7 +53,8 @@ def show_db():
         collisions=db.collisions,
         overflows=db.overflows,
         index_build_time=db.index_build_time,
-        collision_rate=db.collisions / word_count
+        collision_rate=round((db.collisions / word_count * 100), 3),
+        overflow_rate=round((db.overflows / db.n_buckets * 100), 3)
     )
 
 @app.get("/db/pages")
